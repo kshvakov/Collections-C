@@ -52,6 +52,13 @@ void test_list_iter_desc_remove();
 void test_list_iter_add();
 void test_list_iter_remove();
 
+void test_list_zip_iter();
+void test_list_zip_iter_next();
+void test_list_zip_iter_add();
+void test_list_zip_iter_remove();
+void test_list_zip_iter_replace();
+
+
 int main(int argc, char **argv)
 {
      cc_set_status(PASS);
@@ -84,6 +91,7 @@ int main(int argc, char **argv)
      test_list_splice_at();
      test_list_to_array();
      test_list_reverse();
+     test_list_zip_iter();
 
      return  cc_get_status();
 }
@@ -395,14 +403,16 @@ void test_list_iter_add()
     List *list;
     list_1234(&list);
 
-    int ins = 32;
+    int *ins = (int*) malloc(sizeof(int));
+    *ins = 32;
 
     ListIter iter;
     list_iter_init(&iter, list);
 
-    while (list_iter_next(&iter, NULL) != CC_ITER_END) {
-        if (list_iter_index(&iter) == 3)
-            list_iter_add(&iter, &ins);
+    int *el;
+    while (list_iter_next(&iter, (void*) &el) != CC_ITER_END) {
+        if (*el == 3)
+            list_iter_add(&iter, ins);
     }
 
     cc_assert(list_size(list) == 5,
@@ -412,12 +422,12 @@ void test_list_iter_add()
     int *li3;
     list_get_at(list, 3, (void*) &li3);
 
+    cc_assert(*li3 == *ins,
+              cc_msg("list_iter_add: Expected element at"
+                     " index 3 was %d, but got %d", *ins, *li3));
+
     int *li4;
     list_get_at(list, 4, (void*) &li4);
-
-    cc_assert(*li3 == ins,
-              cc_msg("list_iter_add: Expected element at"
-                     " index 3 was %d, but got %d", ins, *li3));
 
     cc_assert(*li4 == 4,
               cc_msg("list_iter_add: Expected element at"
@@ -426,21 +436,25 @@ void test_list_iter_add()
 
     list_iter_init(&iter, list);
 
-    while (list_iter_next(&iter, NULL) != CC_ITER_END) {
-        if (list_iter_index(&iter) == 0)
-            list_iter_add(&iter, &ins);
+    ins = (int*) malloc(sizeof(int));
+    *ins = 32;
+
+    while (list_iter_next(&iter, (void*) &el) != CC_ITER_END) {
+        if (*el == 4) {
+            list_iter_add(&iter, ins);
+        }
     }
 
     void *e;
-    list_get_first(list, &e);
+    list_get_last(list, &e);
 
-    cc_assert(*((int*)e) == ins,
-              cc_msg("list_iter_add: Expected first element"
-                     " to be %d, but got %d instead", ins, *((int*)e)));
+    cc_assert(*((int*)e) == *ins,
+              cc_msg("list_iter_add: Expected last element"
+                     " to be %d, but got %d instead", *ins, *((int*)e)));
 
     test_list_validate_structure(list, "list_iter_add");
 
-    list_destroy(list);
+    list_destroy_free(list);
 }
 
 void test_list_iter_remove()
@@ -456,8 +470,10 @@ void test_list_iter_remove()
 
     int *e;
     while (list_iter_next(&iter, (void*) &e) != CC_ITER_END) {
-        if (*e == 3)
+        if (*e == 3) {
             list_iter_remove(&iter, NULL);
+            free(e);
+        }
     }
     cc_assert(list_size(list) == 3,
               cc_msg("list_iter_remove: Expected size"
@@ -469,7 +485,7 @@ void test_list_iter_remove()
 
     test_list_validate_structure(list, "list_iter_remove");
 
-    list_destroy(list);
+    list_destroy_free(list);
 }
 
 void test_list_iter_desc()
@@ -489,8 +505,10 @@ void test_list_iter_desc_remove()
 
     int *i;
     while (list_diter_next(&iter, (void*) &i) != CC_ITER_END) {
-        if (*i == 1 || *i == 3)
+        if (*i == 1 || *i == 3) {
             list_diter_remove(&iter, NULL);
+            free(i);
+        }
     }
     int size = list_size(list);
 
@@ -668,10 +686,10 @@ void test_list_index_of()
     list_add(list, &d);
 
     size_t i0;
-    list_index_of(list, &a, &i0);
+    list_index_of(list, &a, cc_common_cmp_ptr, &i0);
 
     size_t i1;
-    list_index_of(list, &c, &i1);
+    list_index_of(list, &c, cc_common_cmp_ptr, &i1);
 
     cc_assert(i0 == 0,
               cc_msg("list_index_of: Expected "
@@ -731,7 +749,7 @@ void test_list_sort()
 
     test_list_validate_structure(list, "list_sort");
 
-    list_destroy(list);
+    list_destroy_free(list);
 }
 
 
@@ -877,6 +895,8 @@ void test_list_remove()
               cc_msg("list_remove: The list still"
                      " contains the removed element!"));
 
+    free(e);
+
     test_list_validate_structure(list, "list_remove");
 
     list_destroy_free(list);
@@ -888,14 +908,15 @@ void test_list_remove_first()
     List *list;
     list_1234(&list);
 
-    list_remove_first(list, NULL);
+    int *first;
+    list_remove_first(list, (void*) &first);
+    free(first);
 
     cc_assert(list_size(list) == 3,
               cc_msg("list_remove_first: Expected "
                      "size was 3, but got %d!",
                      list_size(list)));
 
-    int *first;
     list_get_first(list, (void*) &first);
 
     cc_assert(*first == 2,
@@ -914,14 +935,15 @@ void test_list_remove_last()
     List *list;
     list_1234(&list);
 
-    list_remove_last(list, NULL);
+    int *last;
+    list_remove_last(list, (void*) &last);
+    free(last);
 
     cc_assert(list_size(list) == 3,
               cc_msg("list_remove_last: Expected"
                      " size was 3, but got %d!",
                      list_size(list)));
 
-    int *last = NULL;
     enum cc_stat status = list_get_last(list, (void*) &last);
     cc_assert(status == CC_OK,
               cc_msg("list_remove_last: Status is not CC_OK"));
@@ -942,9 +964,10 @@ void test_list_remove_at()
     List *list;
     list_1234(&list);
 
-    list_remove_at(list, 2, NULL);
-
     int *e;
+    list_remove_at(list, 2, (void*) &e);
+    free(e);
+
     list_get_at(list, 2, (void*) &e);
 
     cc_assert(*e == 4,
@@ -955,7 +978,8 @@ void test_list_remove_at()
               cc_msg("list_remove_at: Expected size"
                      " was 3, but got %d!", list_size(list)));
 
-    list_remove_at(list, 0, NULL);
+    list_remove_at(list, 0, (void*) &e);
+    free(e);
 
     list_get_at(list, 0, (void*) &e);
 
@@ -973,7 +997,7 @@ void test_list_remove_all()
 {
     List *list;
     list_1234(&list);
-    list_remove_all(list);
+    list_remove_all_free(list);
 
     cc_assert(list_size(list) == 0,
               cc_msg("list_remove_all: Expected size"
@@ -1045,10 +1069,11 @@ void test_list_replace_at()
     int *replacement = (int*) malloc(sizeof(int));
     *replacement = 32;
 
-    list_replace_at(list, replacement, 2, NULL);
+    int *r;
+    list_replace_at(list, replacement, 2, (void*) &r);
+    free(r);
 
-    void *r;
-    list_get_at(list, 2, &r);
+    list_get_at(list, 2, (void*) &r);
     cc_assert((int*) r == replacement,
               cc_msg("list_replace_at: Unexpected"
                      " element at index 2"));
@@ -1193,6 +1218,249 @@ void test_list_sublist()
 
     list_destroy(sub);
     list_destroy_free(list);
+}
+
+
+void test_list_zip_iter()
+{
+    test_list_zip_iter_next();
+    test_list_zip_iter_add();
+    test_list_zip_iter_remove();
+    test_list_zip_iter_replace();
+}
+
+
+void test_list_zip_iter_next()
+{
+    List *a1;
+    list_new(&a1);
+
+    list_add(a1, "a");
+    list_add(a1, "b");
+    list_add(a1, "c");
+    list_add(a1, "d");
+
+    List *a2;
+    list_new(&a2);
+
+    list_add(a2, "e");
+    list_add(a2, "f");
+    list_add(a2, "g");
+
+    ListZipIter zip;
+    list_zip_iter_init(&zip, a1, a2);
+
+    size_t i = 0;
+
+    void *e1, *e2;
+    while (list_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (i == 0) {
+            cc_assert(strcmp((char*) e1, "a") == 0,
+                      cc_msg("list_zip_iter_next: Expected e1 was \"a\" at index 0, but got %s instead",
+                             (char*) e1));
+            cc_assert(strcmp((char*) e2, "e") == 0,
+                      cc_msg("list_zip_iter_next: Expected e1 was \"e\" at index 0, but got %s instead",
+                             (char*) e2));
+        }
+        if (i == 2) {
+            cc_assert(strcmp((char*) e1, "c") == 0,
+                      cc_msg("list_zip_iter_next: Expected e1 was \"a\" at index 2, but got %s instead",
+                             (char*) e1));
+            cc_assert(strcmp((char*) e2, "g") == 0,
+                      cc_msg("list_zip_iter_next: Expected e1 was \"e\" at index 2, but got %s instead",
+                             (char*) e2));
+        }
+        i++;
+    }
+    cc_assert(i == 3,
+              cc_msg("list_zip_iter_next: Expected 3 iterations, but got %d instead", i));
+
+    list_destroy(a1);
+    list_destroy(a2);
+}
+
+
+void test_list_zip_iter_add()
+{
+    List *a1;
+    list_new(&a1);
+
+    list_add(a1, "a");
+    list_add(a1, "b");
+    list_add(a1, "c");
+    list_add(a1, "d");
+
+    List *a2;
+    list_new(&a2);
+
+    list_add(a2, "e");
+    list_add(a2, "f");
+    list_add(a2, "g");
+
+    char *h = "h";
+    char *i = "i";
+
+    ListZipIter zip;
+    list_zip_iter_init(&zip, a1, a2);
+
+    void *e1, *e2;
+    while (list_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            list_zip_iter_add(&zip, h, i);
+    }
+
+    size_t index;
+    list_index_of(a1, "h", cc_common_cmp_ptr, &index);
+
+    cc_assert(index == 2,
+              cc_msg("list_zip_iter_add: Expected element %s to be at index 2"
+                     " but was found at %d", "h", index));
+
+    list_index_of(a1, "i", cc_common_cmp_ptr, &index);
+    cc_assert(index == 2,
+              cc_msg("list_zip_iter_add: Expected element %s to be at index 2"
+                     " but was found at %d", "i", index));
+
+    list_index_of(a1, "c", cc_common_cmp_ptr, &index);
+    cc_assert(index == 3,
+              cc_msg("list_zip_iter_add: Expected element %s to be at index 3"
+                     " but was found at %d", "c", index));
+
+    cc_assert(list_contains(a1, "h") == 1,
+              cc_msg("list_zip_iter_add: Element %s not presetn after addition", "h"));
+
+    cc_assert(list_contains(a2, "i") == 1,
+              cc_msg("list_zip_iter_add: Element %s not presetn after addition", "i"));
+
+    cc_assert(list_size(a1) == 5,
+              cc_msg("list_zip_iter_add: Expected size 5, but got %d", list_size(a1)));
+
+    cc_assert(list_size(a2) == 4,
+              cc_msg("list_zip_iter_add: Expected size 4, but got %d", list_size(a2)));
+
+    list_zip_iter_init(&zip, a1, a2);
+    while (list_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e2, "g") == 0)
+            list_zip_iter_add(&zip, "x", "y");
+    }
+
+    char *last;
+    list_get_last(a1, (void*) &last);
+    cc_assert(strcmp(last, "d") == 0,
+              cc_msg("list_zip_iter_add: Expected last element %s, but got %s instead", "d", last));
+
+    list_get_last(a2, (void*) &last);
+    cc_assert(strcmp(last, "y") == 0,
+              cc_msg("list_zip_iter_add: Expected last element %s, but got %s instead", "y", last));
+
+
+    test_list_validate_structure(a1, "list_zip_iter_add (l1)");
+    test_list_validate_structure(a2, "list_zip_iter_add (l2)");
+
+    list_destroy(a1);
+    list_destroy(a2);
+}
+
+
+void test_list_zip_iter_remove()
+{
+    List *a1;
+    list_new(&a1);
+
+    list_add(a1, "a");
+    list_add(a1, "b");
+    list_add(a1, "c");
+    list_add(a1, "d");
+
+    List *a2;
+    list_new(&a2);
+
+    list_add(a2, "e");
+    list_add(a2, "f");
+    list_add(a2, "g");
+
+    ListZipIter zip;
+    list_zip_iter_init(&zip, a1, a2);
+
+    void *e1, *e2;
+    void *r1, *r2;
+    while (list_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            list_zip_iter_remove(&zip, &r1, &r2);
+    }
+    cc_assert(strcmp((char*) r1, "b") == 0 && strcmp((char*) r2, "f") == 0,
+              cc_msg("list_zip_iter_remove: Removed elements don't match expected ones"));
+
+    cc_assert(list_contains(a1, "b") == 0,
+              cc_msg("list_zip_iter_remove: Element still present after removal"));
+
+    cc_assert(list_contains(a2, "f") == 0,
+              cc_msg("list_zip_iter_remove: Element still present after removal"));
+
+    cc_assert(list_size(a1) == 3,
+              cc_msg("list_zip_iter_remove: Expected size 3, but got %d", list_size(a1)));
+
+    cc_assert(list_size(a2) == 2,
+              cc_msg("list_zip_iter_remove: Expected size 2, but got %d", list_size(a2)));
+
+    test_list_validate_structure(a1, "list_zip_iter_remove (l1)");
+    test_list_validate_structure(a2, "list_zip_iter_remove (l2)");
+
+    list_destroy(a1);
+    list_destroy(a2);
+}
+
+
+void test_list_zip_iter_replace()
+{
+    List *a1;
+    list_new(&a1);
+
+    list_add(a1, "a");
+    list_add(a1, "b");
+    list_add(a1, "c");
+    list_add(a1, "d");
+
+    List *a2;
+    list_new(&a2);
+
+    list_add(a2, "e");
+    list_add(a2, "f");
+    list_add(a2, "g");
+
+    char *h = "h";
+    char *i = "i";
+
+    ListZipIter zip;
+    list_zip_iter_init(&zip, a1, a2);
+
+    void *e1, *e2;
+    void *r1, *r2;
+    while (list_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            list_zip_iter_replace(&zip, h, i, &r1, &r2);
+    }
+
+    size_t index;
+    list_index_of(a1, "h", cc_common_cmp_ptr, &index);
+
+    cc_assert(index == 1,
+              cc_msg("list_zip_iter_replace: Expected element %s to be at index 1"
+                     " but was found at %d", "h", index));
+
+    list_index_of(a1, "i", cc_common_cmp_ptr, &index);
+    cc_assert(index == 1,
+              cc_msg("list_zip_iter_replace: Expected element %s to be at index 1"
+                     " but was found at %d", "i", index));
+
+    cc_assert(list_contains(a1, "h") == 1,
+              cc_msg("list_zip_iter_replace: Element %s not presetn after addition", "h"));
+
+    cc_assert(list_contains(a2, "i") == 1,
+              cc_msg("list_zip_iter_replace: Element %s not presetn after addition", "i"));
+
+    list_destroy(a1);
+    list_destroy(a2);
 }
 
 

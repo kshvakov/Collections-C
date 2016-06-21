@@ -9,7 +9,7 @@ void test_deque_add_at();
 void test_deque_remove_first();
 void test_deque_remove_last();
 void test_deque_remove_all();
-void test_deque_get();
+void test_deque_get_at();
 void test_deque_get_first();
 void test_deque_get_last();
 void test_deque_copy_shallow();
@@ -20,6 +20,13 @@ void test_deque_capacity();
 void test_deque_trim_capacity();
 void test_deque_reverse();
 void test_deque_iterator();
+
+void test_deque_zip_iter();
+void test_deque_zip_iter_remove();
+void test_deque_zip_iter_add();
+void test_deque_zip_iter_next();
+void test_deque_zip_iter_replace();
+
 
 int main(int argc, char **argv)
 {
@@ -32,7 +39,7 @@ int main(int argc, char **argv)
     test_deque_remove_first();
     test_deque_remove_last();
     test_deque_remove_all();
-    test_deque_get();
+    test_deque_get_at();
     test_deque_get_first();
     test_deque_get_last();
     test_deque_copy_shallow();
@@ -43,6 +50,7 @@ int main(int argc, char **argv)
     test_deque_trim_capacity();
     test_deque_reverse();
     test_deque_iterator();
+    test_deque_zip_iter();
 
     return cc_get_status();
 }
@@ -597,7 +605,7 @@ void test_deque_remove_all()
 }
 
 
-void test_deque_get()
+void test_deque_get_at()
 {
     int a = 1;
     int b = 2;
@@ -611,9 +619,9 @@ void test_deque_get()
     deque_add(deque, &c);
 
     void *e;
-    deque_get(deque, 1, &e);
+    deque_get_at(deque, 1, &e);
     void *n;
-    int status = deque_get(deque, 42, &n);
+    int status = deque_get_at(deque, 42, &n);
 
     cc_assert(*((int*) e) == b,
               cc_msg("deque_get: "
@@ -702,13 +710,13 @@ void test_deque_copy_shallow()
                      "but got %d", 3, size));
 
     int *ca;
-    deque_get(copy, 0, (void*)&ca);
+    deque_get_at(copy, 0, (void*)&ca);
 
     int *cb;
-    deque_get(copy, 1, (void*)&cb);
+    deque_get_at(copy, 1, (void*)&cb);
 
     int *cc;
-    deque_get(copy, 2, (void*)&cc);
+    deque_get_at(copy, 2, (void*)&cc);
 
     cc_assert(*ca == a && *cb == b && *cc == c,
               cc_msg("deque_copy_shallow: "
@@ -748,11 +756,11 @@ void test_deque_copy_deep()
                      "but got %d", 3, size));
 
     int *ca;
-    deque_get(copy, 0, (void*)&ca);
+    deque_get_at(copy, 0, (void*)&ca);
     int *cb;
-    deque_get(copy, 1, (void*)&cb);
+    deque_get_at(copy, 1, (void*)&cb);
     int *cc;
-    deque_get(copy, 2, (void*)&cc);
+    deque_get_at(copy, 2, (void*)&cc);
 
     cc_assert(*ca == 1 && *cb == 2 && *cc == 3,
               cc_msg("deque_copy_deep: "
@@ -760,6 +768,9 @@ void test_deque_copy_deep()
 
     deque_destroy(deque);
     deque_destroy_free(copy);
+    free(a);
+    free(b);
+    free(c);
 }
 
 
@@ -901,11 +912,11 @@ void test_deque_reverse()
     deque_reverse(deque);
 
     int *ra;
-    deque_get(deque, 0, (void*)&ra);
+    deque_get_at(deque, 0, (void*)&ra);
     int *rb;
-    deque_get(deque, 1, (void*)&rb);
+    deque_get_at(deque, 1, (void*)&rb);
     int *rc;
-    deque_get(deque, 2, (void*)&rc);
+    deque_get_at(deque, 2, (void*)&rc);
 
     cc_assert(*ra == c,
               cc_msg("deque_reverse: Expected %d but got %d instead",
@@ -948,8 +959,9 @@ void test_deque_iterator_add()
 
     size_t i = 0;
 
-    while (deque_iter_next(&iter, NULL) != CC_ITER_END) {
-        if (deque_iter_index(&iter) == 3)
+    int *el;
+    while (deque_iter_next(&iter, (void*) &el) != CC_ITER_END) {
+        if (*el == d)
             deque_iter_add(&iter, &g);
 
         if (deque_iter_index(&iter) < 3) {
@@ -968,10 +980,12 @@ void test_deque_iterator_add()
         }
         i++;
     }
-
+    cc_assert(deque_size(deque) == 7,
+              cc_msg("deque_iter_add: Expected size"
+                     " was 7, but got %d", deque_size(deque)));
 
     void *ret;
-    deque_get(deque, 3, &ret);
+    deque_get_at(deque, 4, &ret);
 
     cc_assert(*((int*)ret) == g,
               cc_msg("deque_iterator: Expected value at index 3 was %d,"
@@ -1004,7 +1018,8 @@ void test_deque_iterator_remove()
     deque_iter_init(&iter, deque);
 
     size_t i = 0;
-    while (deque_iter_next(&iter, NULL) != CC_ITER_END) {
+    void *el;
+    while (deque_iter_next(&iter, &el) != CC_ITER_END) {
         if (i == 3)
             deque_iter_remove(&iter, NULL);
 
@@ -1055,7 +1070,7 @@ void test_deque_iterator_next()
     void *el;
     while (deque_iter_next(&iter, &el) != CC_ITER_END) {
         void *k;
-        deque_get(deque, i, &k);
+        deque_get_at(deque, i, &k);
         cc_assert(el == k,
                   cc_msg("deque_iterator: Element returned by "
                          "deque_iter_next not as expected"));
@@ -1073,4 +1088,225 @@ void test_deque_iterator()
     test_deque_iterator_next();
     test_deque_iterator_add();
     test_deque_iterator_remove();
+}
+
+
+void test_deque_zip_iter()
+{
+    test_deque_zip_iter_remove();
+    test_deque_zip_iter_next();
+    test_deque_zip_iter_replace();
+    test_deque_zip_iter_add();
+}
+
+
+void test_deque_zip_iter_remove()
+{
+    Deque *d1;
+    deque_new(&d1);
+
+    deque_add(d1, "a");
+    deque_add(d1, "b");
+    deque_add(d1, "c");
+    deque_add(d1, "d");
+
+    Deque *d2;
+    deque_new(&d2);
+
+    deque_add(d2, "e");
+    deque_add(d2, "f");
+    deque_add(d2, "g");
+
+    DequeZipIter zip;
+    deque_zip_iter_init(&zip, d1, d2);
+
+    void *e1, *e2;
+    void *r1, *r2;
+    while (deque_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            deque_zip_iter_remove(&zip, &r1, &r2);
+    }
+    cc_assert(strcmp((char*) r1, "b") == 0 && strcmp((char*) r2, "f") == 0,
+              cc_msg("deque_zip_iter_remove: Removed elements don't match expected ones"));
+
+    cc_assert(deque_contains(d1, "b") == 0,
+              cc_msg("deque_zip_iter_remove: Element still present after removal"));
+
+    cc_assert(deque_contains(d2, "f") == 0,
+              cc_msg("deque_zip_iter_remove: Element still present after removal"));
+
+    cc_assert(deque_size(d1) == 3,
+              cc_msg("deque_zip_iter_remove: Expected size 3, but got %d", deque_size(d1)));
+
+    cc_assert(deque_size(d2) == 2,
+              cc_msg("deque_zip_iter_remove: Expected size 2, but got %d", deque_size(d2)));
+
+    deque_destroy(d1);
+    deque_destroy(d2);
+}
+
+
+void test_deque_zip_iter_add()
+{
+    Deque *d1;
+    deque_new(&d1);
+
+    deque_add(d1, "a");
+    deque_add(d1, "b");
+    deque_add(d1, "c");
+    deque_add(d1, "d");
+
+    Deque *d2;
+    deque_new(&d2);
+
+    deque_add(d2, "e");
+    deque_add(d2, "f");
+    deque_add(d2, "g");
+
+    char *h = "h";
+    char *i = "i";
+
+    DequeZipIter zip;
+    deque_zip_iter_init(&zip, d1, d2);
+
+    void *e1, *e2;
+    while (deque_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            deque_zip_iter_add(&zip, h, i);
+    }
+
+    size_t index;
+    deque_index_of(d1, "h", &index);
+
+    cc_assert(index == 2,
+              cc_msg("deque_zip_iter_add: Expected element %s to be at index 2"
+                     " but was found at %d", "h", index));
+
+    deque_index_of(d1, "i", &index);
+    cc_assert(index == 2,
+              cc_msg("deque_zip_iter_add: Expected element %s to be at index 2"
+                     " but was found at %d", "i", index));
+
+    deque_index_of(d1, "c", &index);
+    cc_assert(index == 3,
+              cc_msg("deque_zip_iter_add: Expected element %s to be at index 3"
+                     " but was found at %d", "c", index));
+
+    cc_assert(deque_contains(d1, "h") == 1,
+              cc_msg("deque_zip_iter_add: Element %s not presetn after addition", "h"));
+
+    cc_assert(deque_contains(d2, "i") == 1,
+              cc_msg("deque_zip_iter_add: Element %s not presetn after addition", "i"));
+
+    cc_assert(deque_size(d1) == 5,
+              cc_msg("deque_zip_iter_add: Expected size 5, but got %d", deque_size(d1)));
+
+    cc_assert(deque_size(d2) == 4,
+              cc_msg("deque_zip_iter_add: Expected size 4, but got %d", deque_size(d2)));
+
+    deque_destroy(d1);
+    deque_destroy(d2);
+}
+
+
+void test_deque_zip_iter_next()
+{
+    Deque *d1;
+    deque_new(&d1);
+
+    deque_add(d1, "a");
+    deque_add(d1, "b");
+    deque_add(d1, "c");
+    deque_add(d1, "d");
+
+    Deque *d2;
+    deque_new(&d2);
+
+    deque_add(d2, "e");
+    deque_add(d2, "f");
+    deque_add(d2, "g");
+
+    DequeZipIter zip;
+    deque_zip_iter_init(&zip, d1, d2);
+
+    size_t i = 0;
+
+    void *e1, *e2;
+    while (deque_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (i == 0) {
+            cc_assert(strcmp((char*) e1, "a") == 0,
+                      cc_msg("deque_zip_iter_next: Expected e1 was \"a\" at index 0, but got %s instead",
+                             (char*) e1));
+            cc_assert(strcmp((char*) e2, "e") == 0,
+                      cc_msg("deque_zip_iter_next: Expected e1 was \"e\" at index 0, but got %s instead",
+                             (char*) e2));
+        }
+        if (i == 2) {
+            cc_assert(strcmp((char*) e1, "c") == 0,
+                      cc_msg("deque_zip_iter_next: Expected e1 was \"a\" at index 2, but got %s instead",
+                             (char*) e1));
+            cc_assert(strcmp((char*) e2, "g") == 0,
+                      cc_msg("deque_zip_iter_next: Expected e1 was \"e\" at index 2, but got %s instead",
+                             (char*) e2));
+        }
+        i++;
+    }
+    cc_assert(i == 3,
+              cc_msg("deque_zip_iter_next: Expected 3 iterations, but got %d instead", i));
+
+    deque_destroy(d1);
+    deque_destroy(d2);
+}
+
+
+void test_deque_zip_iter_replace()
+{
+    Deque *d1;
+    deque_new(&d1);
+
+    deque_add(d1, "a");
+    deque_add(d1, "b");
+    deque_add(d1, "c");
+    deque_add(d1, "d");
+
+    Deque *d2;
+    deque_new(&d2);
+
+    deque_add(d2, "e");
+    deque_add(d2, "f");
+    deque_add(d2, "g");
+
+    char *h = "h";
+    char *i = "i";
+
+    DequeZipIter zip;
+    deque_zip_iter_init(&zip, d1, d2);
+
+    void *e1, *e2;
+    void *r1, *r2;
+    while (deque_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            deque_zip_iter_replace(&zip, h, i, &r1, &r2);
+    }
+
+    size_t index;
+    deque_index_of(d1, "h", &index);
+
+    cc_assert(index == 1,
+              cc_msg("deque_zip_iter_replace: Expected element %s to be at index 1"
+                     " but was found at %d", "h", index));
+
+    deque_index_of(d1, "i", &index);
+    cc_assert(index == 1,
+              cc_msg("deque_zip_iter_replace: Expected element %s to be at index 1"
+                     " but was found at %d", "i", index));
+
+    cc_assert(deque_contains(d1, "h") == 1,
+              cc_msg("deque_zip_iter_replace: Element %s not present after addition", "h"));
+
+    cc_assert(deque_contains(d2, "i") == 1,
+              cc_msg("deque_zip_iter_replace: Element %s not present after addition", "i"));
+
+    deque_destroy(d1);
+    deque_destroy(d2);
 }

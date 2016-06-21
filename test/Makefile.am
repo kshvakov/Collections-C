@@ -33,19 +33,21 @@ queue_test_LDFLAGS     = -static
 treetable_test_LDFLAGS = -static
 treeset_test_LDFLAGS   = -static
 
-treetable_test_CFLAGS = -DDEBUG -g -O0 -Werror
-list_test_CFLAGS      = -DDEBUG -g -O0 -Werror
-hashtable_test_CFLAGS = -DDEBUG -g -O0 -Werror
-array_test_CFLAGS    = -DDEBUG -g -O0 -Werror
-slist_test_CFLAGS     = -DDEBUG -g -O0 -Werror
-deque_test_CFLAGS     = -DDEBUG -g -O0 -Werror
-hashset_test_CFLAGS   = -DDEBUG -g -O0 -Werror
-stack_test_CFLAGS     = -DDEBUG -g -O0 -Werror
-queue_test_CFLAGS     = -DDEBUG -g -O0 -Werror
-treeset_test_CFLAGS   = -DDEBUG -g -O0 -Werror
+treetable_test_CFLAGS = -DDEBUG -g -O0 -Werror -std=c99
+list_test_CFLAGS      = -DDEBUG -g -O0 -Werror -std=c99
+hashtable_test_CFLAGS = -DDEBUG -g -O0 -Werror -std=c99
+array_test_CFLAGS    = -DDEBUG -g -O0 -Werror -std=c99
+slist_test_CFLAGS     = -DDEBUG -g -O0 -Werror -std=c99
+deque_test_CFLAGS     = -DDEBUG -g -O0 -Werror -std=c99
+hashset_test_CFLAGS   = -DDEBUG -g -O0 -Werror -std=c99
+stack_test_CFLAGS     = -DDEBUG -g -O0 -Werror -std=c99
+queue_test_CFLAGS     = -DDEBUG -g -O0 -Werror -std=c99
+treeset_test_CFLAGS   = -DDEBUG -g -O0 -Werror -std=c99
 
 treeset_test_SOURCES =\
 treeset_test.c\
+../src/common.h \
+../src/common.c \
 ../src/treeset.c\
 ../src/treeset.h\
 ../src/treetable.c\
@@ -55,6 +57,8 @@ test.h
 
 list_test_SOURCES =\
 list_test.c \
+../src/common.h \
+../src/common.c \
 ../src/list.c \
 ../src/list.h \
 test.c \
@@ -62,6 +66,8 @@ test.h
 
 hashtable_test_SOURCES =\
 hashtable_test.c \
+../src/common.h \
+../src/common.c \
 ../src/hashtable.c \
 ../src/hashtable.h \
 ../src/array.c \
@@ -71,12 +77,16 @@ test.h
 
 array_test_SOURCES =\
 array_test.c\
+../src/common.h \
+../src/common.c \
 ../src/array.c\
 ../src/array.h\
 test.c\
 test.h
 
 slist_test_SOURCES =\
+../src/common.h \
+../src/common.c \
 slist_test.c\
 test.h\
 test.c\
@@ -84,6 +94,8 @@ test.c\
 ../src/slist.c
 
 deque_test_SOURCES =\
+../src/common.h \
+../src/common.c \
 deque_test.c\
 test.h test.c\
 ../src/deque.c\
@@ -93,6 +105,8 @@ hashset_test_SOURCES =\
 hashset_test.c\
 test.h\
 test.c\
+../src/common.c \
+../src/common.h \
 ../src/hashset.c\
 ../src/hashset.h\
 ../src/hashtable.h\
@@ -104,6 +118,8 @@ stack_test_SOURCES =\
 stack_test.c\
 test.h\
 test.c\
+../src/common.h \
+../src/common.c \
 ../src/stack.c\
 ../src/stack.h\
 ../src/array.c\
@@ -113,6 +129,8 @@ queue_test_SOURCES =\
 queue_test.c\
 test.h\
 test.c\
+../src/common.h \
+../src/common.c \
 ../src/queue.c\
 ../src/queue.h\
 ../src/deque.c\
@@ -122,6 +140,8 @@ treetable_test_SOURCES =\
 treetable_test.c\
 test.c\
 test.h\
+../src/common.h \
+../src/common.c \
 ../src/treetable.c\
 ../src/treetable.h\
 ../src/deque.h\

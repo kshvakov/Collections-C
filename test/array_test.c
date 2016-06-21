@@ -1,4 +1,5 @@
 #include <time.h>
+#include <stdint.h>
 
 #include "../src/array.h"
 #include "test.h"
@@ -19,10 +20,20 @@ void test_array_trim_capacity();
 void test_array_contains();
 void test_array_capacity();
 void test_array_sort();
+void test_array_filter_mut();
+void test_array_filter();
 
 void test_array_iter();
 void test_array_iter_remove();
 void test_array_iter_add();
+void test_array_iter_replace();
+
+void test_array_zip_iter();
+void test_array_zip_iter_remove();
+void test_array_zip_iter_add();
+void test_array_zip_iter_next();
+void test_array_zip_iter_replace();
+
 
 int main(int argc, char **argv)
 {
@@ -45,6 +56,9 @@ int main(int argc, char **argv)
     test_array_capacity();
     test_array_sort();
     test_array_iter();
+    test_array_zip_iter();
+    test_array_filter_mut();
+    test_array_filter();
 
     return cc_get_status();
 }
@@ -621,6 +635,7 @@ void test_array_iter()
 {
      test_array_iter_remove();
      test_array_iter_add();
+     test_array_iter_replace();
 }
 
 void test_array_iter_remove()
@@ -655,39 +670,444 @@ void test_array_iter_remove()
 
 void test_array_iter_add()
 {
-    Array *v;
-    array_new(&v);
+    Array *ar;
+    array_new(&ar);
+
+    int a = 1;
+    int b = 2;
+    int c = 3;
+    int d = 4;
+
+    int new = 80;
+
+    array_add(ar, (void*)&a);
+    array_add(ar, (void*)&b);
+    array_add(ar, (void*)&c);
+    array_add(ar, (void*)&d);
+
+    ArrayIter iter;
+    array_iter_init(&iter, ar);
+
+    int *e;
+    while (array_iter_next(&iter, (void*) &e) != CC_ITER_END) {
+        if (*e == 3)
+            array_iter_add(&iter, (void*) &new);
+    }
+    cc_assert(array_size(ar) == 5,
+              cc_msg("array_iter_add: Expected size"
+                     " was 5, but got %d", array_size(ar)));
+    void *n;
+    array_get_at(ar, 3, &n);
+
+    cc_assert(*((int*)n) == new,
+              cc_msg("array_iter_add: Expected element at index 2 was %d"
+                     ", but got %d instead", new, *((int*)n)));
+
+    cc_assert(array_contains(ar, &new) == 1,
+              cc_msg("array_iter_add: Element not present after being added"));
+
+    array_get_at(ar, 4, (void*) &n);
+    cc_assert(*((int*)n) == 4,
+              cc_msg("array_iter_add: Expected element at index 4 was 4, but got %d", *((int*)n)));
+
+    array_destroy(ar);
+}
+
+
+void test_array_iter_replace()
+{
+    Array *ar;
+    array_new(&ar);
 
     int a = 5;
     int b = 12;
     int c = 848;
     int d = 23;
 
-    int new = 80;
+    int replacement = 42;
 
-    array_add(v, (void*)&a);
-    array_add(v, (void*)&b);
-    array_add(v, (void*)&c);
-    array_add(v, (void*)&d);
+    array_add(ar, (void*)&a);
+    array_add(ar, (void*)&b);
+    array_add(ar, (void*)&c);
+    array_add(ar, (void*)&d);
 
     ArrayIter iter;
-    array_iter_init(&iter, v);
+    array_iter_init(&iter, ar);
 
     int *e;
+    int *old;
     while (array_iter_next(&iter, (void*) &e) != CC_ITER_END) {
-        if (array_iter_index(&iter) == 2)
-            array_iter_add(&iter, (void*) &new);
+        if (*e == c)
+            array_iter_replace(&iter, (void*)&replacement, (void*)&old);
     }
 
-    void *n;
-    array_get_at(v, 2, &n);
+    size_t index;
+    array_index_of(ar, (void*) &replacement, &index);
 
-    cc_assert(*((int*)n) == new,
-              cc_msg("array_iter_add: Expected element at index 2 was %d"
-                     ", but got %d instead", new, *((int*)n)));
+    cc_assert(index == 2,
+              cc_msg("array_iter_replace: Expected element %d to be at index 2,"
+                     " but was found at index %d instead", replacement, index));
 
-    cc_assert(array_contains(v, &new) == 1,
-              cc_msg("array_iter_add: Element not present after being added"));
+    cc_assert(array_contains(ar, &c) == 0,
+              cc_msg("array_iter_replace: Element still present after being replaced"));
 
-    array_destroy(v);
+    array_destroy(ar);
+}
+
+
+void test_array_zip_iter_next()
+{
+    Array *a1;
+    array_new(&a1);
+
+    array_add(a1, "a");
+    array_add(a1, "b");
+    array_add(a1, "c");
+    array_add(a1, "d");
+
+    Array *a2;
+    array_new(&a2);
+
+    array_add(a2, "e");
+    array_add(a2, "f");
+    array_add(a2, "g");
+
+    ArrayZipIter zip;
+    array_zip_iter_init(&zip, a1, a2);
+
+    size_t i = 0;
+
+    void *e1, *e2;
+    while (array_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (i == 0) {
+            cc_assert(strcmp((char*) e1, "a") == 0,
+                      cc_msg("array_zip_iter_next: Expected e1 was \"a\" at index 0, but got %s instead",
+                             (char*) e1));
+            cc_assert(strcmp((char*) e2, "e") == 0,
+                      cc_msg("array_zip_iter_next: Expected e1 was \"e\" at index 0, but got %s instead",
+                             (char*) e2));
+        }
+        if (i == 2) {
+            cc_assert(strcmp((char*) e1, "c") == 0,
+                      cc_msg("array_zip_iter_next: Expected e1 was \"a\" at index 2, but got %s instead",
+                             (char*) e1));
+            cc_assert(strcmp((char*) e2, "g") == 0,
+                      cc_msg("array_zip_iter_next: Expected e1 was \"e\" at index 2, but got %s instead",
+                             (char*) e2));
+        }
+        i++;
+    }
+    cc_assert(i == 3,
+              cc_msg("array_zip_iter_next: Expected 3 iterations, but got %d instead", i));
+
+    array_destroy(a1);
+    array_destroy(a2);
+}
+
+
+void test_array_zip_iter_remove()
+{
+    Array *a1;
+    array_new(&a1);
+
+    array_add(a1, "a");
+    array_add(a1, "b");
+    array_add(a1, "c");
+    array_add(a1, "d");
+
+    Array *a2;
+    array_new(&a2);
+
+    array_add(a2, "e");
+    array_add(a2, "f");
+    array_add(a2, "g");
+
+    ArrayZipIter zip;
+    array_zip_iter_init(&zip, a1, a2);
+
+    void *e1, *e2;
+    void *r1, *r2;
+    while (array_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            array_zip_iter_remove(&zip, &r1, &r2);
+    }
+    cc_assert(strcmp((char*) r1, "b") == 0 && strcmp((char*) r2, "f") == 0,
+              cc_msg("array_zip_iter_remove: Removed elements don't match expected ones"));
+
+    cc_assert(array_contains(a1, "b") == 0,
+              cc_msg("array_zip_iter_remove: Element still present after removal"));
+
+    cc_assert(array_contains(a2, "f") == 0,
+              cc_msg("array_zip_iter_remove: Element still present after removal"));
+
+    cc_assert(array_size(a1) == 3,
+              cc_msg("array_zip_iter_remove: Expected size 3, but got %d", array_size(a1)));
+
+    cc_assert(array_size(a2) == 2,
+              cc_msg("array_zip_iter_remove: Expected size 2, but got %d", array_size(a2)));
+
+    array_destroy(a1);
+    array_destroy(a2);
+}
+
+
+void test_array_zip_iter_add()
+{
+    Array *a1;
+    array_new(&a1);
+
+    array_add(a1, "a");
+    array_add(a1, "b");
+    array_add(a1, "c");
+    array_add(a1, "d");
+
+    Array *a2;
+    array_new(&a2);
+
+    array_add(a2, "e");
+    array_add(a2, "f");
+    array_add(a2, "g");
+
+    char *h = "h";
+    char *i = "i";
+
+    ArrayZipIter zip;
+    array_zip_iter_init(&zip, a1, a2);
+
+    void *e1, *e2;
+    while (array_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            array_zip_iter_add(&zip, h, i);
+    }
+
+    size_t index;
+    array_index_of(a1, "h", &index);
+
+    cc_assert(index == 2,
+              cc_msg("array_zip_iter_add: Expected element %s to be at index 2"
+                     " but was found at %d", "h", index));
+
+    array_index_of(a1, "i", &index);
+    cc_assert(index == 2,
+              cc_msg("array_zip_iter_add: Expected element %s to be at index 2"
+                     " but was found at %d", "i", index));
+
+    array_index_of(a1, "c", &index);
+    cc_assert(index == 3,
+              cc_msg("array_zip_iter_add: Expected element %s to be at index 3"
+                     " but was found at %d", "c", index));
+
+    cc_assert(array_contains(a1, "h") == 1,
+              cc_msg("array_zip_iter_add: Element %s not presetn after addition", "h"));
+
+    cc_assert(array_contains(a2, "i") == 1,
+              cc_msg("array_zip_iter_add: Element %s not presetn after addition", "i"));
+
+    cc_assert(array_size(a1) == 5,
+              cc_msg("array_zip_iter_add: Expected size 5, but got %d", array_size(a1)));
+
+    cc_assert(array_size(a2) == 4,
+              cc_msg("array_zip_iter_add: Expected size 4, but got %d", array_size(a2)));
+
+    array_destroy(a1);
+    array_destroy(a2);
+}
+
+
+void test_array_zip_iter_replace()
+{
+    Array *a1;
+    array_new(&a1);
+
+    array_add(a1, "a");
+    array_add(a1, "b");
+    array_add(a1, "c");
+    array_add(a1, "d");
+
+    Array *a2;
+    array_new(&a2);
+
+    array_add(a2, "e");
+    array_add(a2, "f");
+    array_add(a2, "g");
+
+    char *h = "h";
+    char *i = "i";
+
+    ArrayZipIter zip;
+    array_zip_iter_init(&zip, a1, a2);
+
+    void *e1, *e2;
+    void *r1, *r2;
+    while (array_zip_iter_next(&zip, &e1, &e2) != CC_ITER_END) {
+        if (strcmp((char*) e1, "b") == 0)
+            array_zip_iter_replace(&zip, h, i, &r1, &r2);
+    }
+
+    size_t index;
+    array_index_of(a1, "h", &index);
+
+    cc_assert(index == 1,
+              cc_msg("array_zip_iter_replace: Expected element %s to be at index 1"
+                     " but was found at %d", "h", index));
+
+    array_index_of(a1, "i", &index);
+    cc_assert(index == 1,
+              cc_msg("array_zip_iter_replace: Expected element %s to be at index 1"
+                     " but was found at %d", "i", index));
+
+    cc_assert(array_contains(a1, "h") == 1,
+              cc_msg("array_zip_iter_replace: Element %s not presetn after addition", "h"));
+
+    cc_assert(array_contains(a2, "i") == 1,
+              cc_msg("array_zip_iter_replace: Element %s not presetn after addition", "i"));
+
+    array_destroy(a1);
+    array_destroy(a2);
+}
+
+
+void test_array_zip_iter()
+{
+    test_array_zip_iter_remove();
+    test_array_zip_iter_add();
+    test_array_zip_iter_next();
+    test_array_zip_iter_replace();
+}
+
+
+Array *new_filter_array()
+{
+    Array *ar;
+    array_new(&ar);
+
+    array_add(ar, (void*) 0);
+    array_add(ar, (void*) 1);
+    array_add(ar, (void*) 2);
+    array_add(ar, (void*) 0);
+    array_add(ar, (void*) 0);
+    array_add(ar, (void*) 3);
+    array_add(ar, (void*) 4);
+    array_add(ar, (void*) 0);
+    array_add(ar, (void*) 0);
+    array_add(ar, (void*) 5);
+    array_add(ar, (void*) 6);
+    return ar;
+}
+
+
+bool pred1(const void *e)
+{
+    return e == 0;
+}
+
+
+bool pred2(const void *e)
+{
+    return e != 0;
+}
+
+
+void test_array_filter_mut() {
+    Array *ar = new_filter_array();
+
+    array_filter_mut(ar, pred1);
+
+    cc_assert(array_size(ar) == 5,
+              cc_msg("array_filter_mut: Expected size after filtering was 5,"
+                     " but got %d instead", array_size(ar)));
+
+    ArrayIter i;
+    array_iter_init(&i, ar);
+    void *e;
+    while (array_iter_next(&i, &e) != CC_ITER_END) {
+        cc_assert(e == 0,
+                  cc_msg("array_filter_mut: Expected 0 at index %lu, but got "
+                         "%lu instead", array_iter_index(&i), e));
+    }
+    array_destroy(ar);
+
+    ar = new_filter_array();
+
+    array_filter_mut(ar, pred2);
+
+    cc_assert(array_size(ar) == 6,
+              cc_msg("array_filter_mut: Expected size after filtering was 6,"
+                     " but got %d instead", array_size(ar)));
+
+    void *e1;
+    array_get_at(ar, 0, &e1);
+
+    void *e2;
+    array_get_at(ar, 1, &e2);
+
+    void *e3;
+    array_get_at(ar, 2, &e3);
+
+    void *e4;
+    array_get_at(ar, 3, &e4);
+
+    void *e5;
+    array_get_at(ar, 4, &e5);
+
+    void *e6;
+    array_get_at(ar, 5, &e6);
+
+    cc_assert((uintptr_t)e1 == 1 && (uintptr_t)e2 == 2 && (uintptr_t)e3 == 3 &&
+              (uintptr_t)e4 == 4 && (uintptr_t)e5 == 5 && (uintptr_t)e6 == 6,
+              cc_msg("array_filter_mut: Unexpected order after filtering"));
+
+    array_destroy(ar);
+}
+
+
+void test_array_filter() {
+    Array *ar = new_filter_array();
+    Array *far;
+    array_filter(ar, pred1, &far);
+
+    cc_assert(array_size(far) == 5,
+              cc_msg("array_filter_mut: Expected size after filtering was 5,"
+                     " but got %d instead", array_size(far)));
+
+    ArrayIter i;
+    array_iter_init(&i, far);
+    void *e;
+    while (array_iter_next(&i, &e) != CC_ITER_END) {
+        cc_assert(e == 0,
+                  cc_msg("array_filter_mut: Expected 0 at index %lu, but got "
+                         "%lu instead", array_iter_index(&i), e));
+    }
+    array_destroy(far);
+
+    array_filter(ar, pred2, &far);
+
+    cc_assert(array_size(far) == 6,
+              cc_msg("array_filter_mut: Expected size after filtering was 6,"
+                     " but got %d instead", array_size(far)));
+
+    void *e1;
+    array_get_at(far, 0, &e1);
+
+    void *e2;
+    array_get_at(far, 1, &e2);
+
+    void *e3;
+    array_get_at(far, 2, &e3);
+
+    void *e4;
+    array_get_at(far, 3, &e4);
+
+    void *e5;
+    array_get_at(far, 4, &e5);
+
+    void *e6;
+    array_get_at(far, 5, &e6);
+
+    cc_assert((uintptr_t)e1 == 1 && (uintptr_t)e2 == 2 && (uintptr_t)e3 == 3 &&
+              (uintptr_t)e4 == 4 && (uintptr_t)e5 == 5 && (uintptr_t)e6 == 6,
+              cc_msg("array_filter_mut: Unexpected order after filtering"));
+
+    array_destroy(far);
+    array_destroy(ar);
 }

@@ -221,6 +221,8 @@ void test_hashtable_get()
     cc_assert(ret == val,
               cc_msg("hashtable_get: Incorrect value returned."
                      " Expected %s, but got %s", val, ret));
+
+    hashtable_destroy(table);
 }
 
 
@@ -298,18 +300,18 @@ void test_hashtable_contains_key()
     hashtable_destroy(table);
 }
 
-bool cmp_k(void *k1, void *k2)
+int cmp_k(const void *k1, const void *k2)
 {
     char *key1 = (char*) k1;
     char *key2 = (char*) k2;
     int i;
     for (i = 0; i < (sizeof(int) * 7); i++) {
         if (*key1 != *key2)
-            return false;
+            return 1;
         key1++;
         key2++;
     }
-    return true;
+    return 0;
 }
 
 void test_hashtable_memory_chunks_as_keys()
@@ -370,10 +372,8 @@ void test_hashtable_iter_next()
     HashTableIter iter;
     hashtable_iter_init(&iter, t);
 
-    while (hashtable_iter_has_next(&iter)) {
-        TableEntry *entry;
-        hashtable_iter_next(&iter, &entry);
-
+    TableEntry *entry;
+    while (hashtable_iter_next(&iter, &entry) != CC_ITER_END) {
         char const *key = entry->key;
 
         if (!strcmp(key, "one"))
@@ -420,11 +420,9 @@ void test_hashtable_iter_remove()
     HashTableIter iter;
     hashtable_iter_init(&iter, t);
 
-    while (hashtable_iter_has_next(&iter)) {
-        TableEntry *entry;
-        hashtable_iter_next(&iter, &entry);
-
-        char const *key   = entry->key;
+    TableEntry *entry;
+    while (hashtable_iter_next(&iter, &entry) != CC_ITER_END) {
+        char const *key = entry->key;
 
         if (!strcmp(key, "bar"))
             hashtable_iter_remove(&iter, NULL);

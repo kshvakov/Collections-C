@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     return cc_get_status();
 }
 
-int cmp(void *k1, void *k2)
+int cmp(const void *k1, const void *k2)
 {
     int a = *((int*) k1);
     int b = *((int*) k2);
@@ -159,9 +159,7 @@ void test_treeset_iter_next()
     treeset_iter_init(&iter, t);
 
     void *e;
-    while (treeset_iter_has_next(&iter)) {
-        treeset_iter_next(&iter, &e);
-
+    while (treeset_iter_next(&iter, &e) != CC_ITER_END) {
         if (*((int*)e) == a)
             one++;
 
@@ -202,11 +200,9 @@ void test_treeset_iter_remove()
     treeset_iter_init(&iter, t);
 
     void *e;
-    while (treeset_iter_has_next(&iter)) {
-        treeset_iter_next(&iter, &e);
-
+    while (treeset_iter_next(&iter, &e) != CC_ITER_END) {
         if (*((int*)e) == b)
-            treeset_iter_remove(&iter);
+            treeset_iter_remove(&iter, NULL);
     }
 
     cc_assert(treeset_size(t) == 2,

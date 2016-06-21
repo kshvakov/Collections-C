@@ -47,7 +47,7 @@ int main(int argc, char **argv)
     return cc_get_status();
 }
 
-int cmp(void *k1, void *k2)
+int cmp(const void *k1, const void *k2)
 {
     int a = *((int*) k1);
     int b = *((int*) k2);
@@ -381,9 +381,7 @@ void test_treetable_iter_next()
     treetable_iter_init(&iter, t);
 
     TreeTableEntry entry;
-    while (treetable_iter_has_next(&iter)) {
-        treetable_iter_next(&iter, &entry);
-
+    while (treetable_iter_next(&iter, &entry) != CC_ITER_END) {
         int const *key = entry.key;
 
         if (*key == a)
@@ -426,12 +424,23 @@ void test_treetable_iter_remove()
     treetable_iter_init(&iter, t);
 
     TreeTableEntry entry;
-    while (treetable_iter_has_next(&iter)) {
-        treetable_iter_next(&iter, &entry);
+    while (treetable_iter_next(&iter, &entry) != CC_ITER_END) {
         int const *key = entry.key;
 
-        if (*key == b)
-            treetable_iter_remove(&iter);
+        if (*key == b) {
+            enum cc_stat s;
+            s = treetable_iter_remove(&iter, NULL);
+
+            cc_assert(s == CC_OK,
+                      cc_msg("treetable_iter_remove: Expected remove success, but"
+                             " got failure instead"));
+
+            s = treetable_iter_remove(&iter, NULL);
+
+            cc_assert(s == CC_ERR_KEY_NOT_FOUND,
+                      cc_msg("treetable_iter_remove: Expected remove failure, but"
+                             " got something else instead"));
+        }
     }
 
     cc_assert(treetable_size(t) == 2,
@@ -505,25 +514,27 @@ void test_rb_structure()
         treetable_add(tree, &(rkeys[i]), dummy);
 
         int status = treetable_assert_rb_rules(tree);
+        char *msg = error_code_to_string(status);
         cc_assert(status == RB_ERROR_OK,
-                  cc_msg("Red Black tree validation (insertion) (i=%d): %s", i,
-                         error_code_to_string(status)));
+                  cc_msg("Red Black tree validation (insertion) (i=%d): %s", i, msg));
+        free(msg);
     }
 
     /* Remove keys at random until all keys are removed and assert Red Black */
     /* validity on each remove. */
     for (i = 0; i < nkeys; i++) {
         int *key;
-        deque_get(keys, (rand() % (deque_size(keys)) -1), (void*)&key);
+        deque_get_at(keys, (rand() % (deque_size(keys)) -1), (void*)&key);
 
         if (key != NULL) {
             treetable_remove(tree, key, NULL);
             deque_remove(keys, key, NULL);
         }
         int status = treetable_assert_rb_rules(tree);
+        char *msg = error_code_to_string(status);
         cc_assert(status  == RB_ERROR_OK,
-                  cc_msg("Red Black tree validation (removal) (i=%d): %s", i,
-                         error_code_to_string(status)));
+                  cc_msg("Red Black tree validation (removal) (i=%d): %s", i, msg));
+        free(msg);
     }
 
     deque_destroy(keys);

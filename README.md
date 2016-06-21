@@ -45,7 +45,7 @@ if (array_new(&ar) != CC_OK) {
 }
 
 // Add an element
-enum cc_stat status = array_add(vec, "foo");
+enum cc_stat status = array_add(ar, "foo");
 if (status == CC_OK) {
     ...
 } else if (status == CC_ERR_ALLOC) {
@@ -56,13 +56,13 @@ if (status == CC_OK) {
 
 // Retrieve a value
 char *foo;
-array_get(vec, 0, (void*) &foo);
+array_get_at(ar, 0, (void*) &foo);
 
 // Remove a value
 char *removed;
-array_remove_at(vec, 0, (void*) &removed);
+array_remove_at(ar, 0, (void*) &removed);
 
-array_destroy(vec);
+array_destroy(ar);
 ```
 ## Installation
 
@@ -123,6 +123,6 @@ gcc hello.c -I/path/to/library/include/ -static -L/path/to/library/lib/ -lcollec
 
 ## Contributors
 
-Contributions are very much welcome.
+All contributions are welcome.
 
-Main work is done on the [development](https://github.com/srdja/Collections-C/tree/development) branch
+See [CONTRIBUTING.md](https://github.com/srdja/Collections-C/blob/master/CONTRIBUTING.md) for details.
